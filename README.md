@@ -1,33 +1,48 @@
-# FlashBot Zero v2: High-Performance Modular Execution Engine
+# FlashBot Zero v2
 
-A production-grade arbitrage execution suite designed for the **Base network**. This version features a modular Rust backend for low-latency transaction simulation and a resilient Solidity executor optimized for capital efficiency and broad token compatibility.
+FlashBot Zero v2 is a modular arbitrage execution framework built for the Ethereum Mainnet network using Rust and Solidity.
 
-## 🏗 Modular Architecture (Rust)
+The project focuses on low-latency transaction simulation, multi-hop execution, and reliable interaction with concentrated liquidity AMMs like Uniswap V3.
 
-Unlike monolithic scripts, this engine is decoupled into specialized modules to ensure maintainability and high-speed execution:
+## Architecture
 
-* **`main.rs` (The Orchestrator)**: Manages the asynchronous lifecycle, block subscriptions, and cross-module communication.
-* **`math.rs` (DeFi Logic)**: Handles precise Uniswap V3 calculations, including Tick-to-Price conversions using Q64.96 fixed-point math to ensure local simulation accuracy.
-* **`executor.rs` (Transaction Layer)**: Implements a sophisticated gas bidding strategy (dynamic estimation + 20% buffer) and handles secure transaction signing and propagation.
-* **`state.rs` (Data Management)**: Utilizes thread-safe `DashMap` for high-performance caching of pool metadata and static token info, minimizing redundant RPC overhead.
+The Rust backend is split into separate modules to keep simulation, execution, and state management isolated and easier to maintain.
 
-## 🛡 Security & Smart Contract Engineering
+- `main.rs`
+  Handles block subscriptions, async orchestration, and cross-module coordination.
 
-The `ArbFlashBot.sol` contract is built with a security-first mindset, focusing on reliability in volatile markets:
+- `math.rs`
+  Contains Uniswap V3 math utilities, including Tick ↔ Price conversions using Q64.96 fixed-point calculations.
 
-* **Capital Efficiency**: Integrated with the **Balancer Vault** to perform zero-fee flash loans, maximizing the net profit of every arbitrage opportunity.
-* **Resilient Token Interaction**: Implements a `IERC20Relaxed` interface to maintain compatibility with non-standard tokens (e.g., those that omit return values on `transfer`), a common edge case in emerging assets.
-* **Atomic Safety**: Enforces strict profit checks and utilizes low-level `_safeApprove` calls to prevent contract stalls during interaction with complex or malicious token logic.
+- `executor.rs`
+  Handles transaction building, gas estimation, signing, and propagation.
 
-## ⚡ Technical Specifications
+- `state.rs`
+  Stores cached pool metadata and token information using DashMap to reduce redundant RPC calls.
 
-| Component | Technology | Role |
-| :--- | :--- | :--- |
-| **Runtime** | Rust (Tokio Async) | Concurrent block processing and simulation. |
-| **Blockchain Lib** | Alloy-rs | High-performance JSON-RPC and WebSocket interaction. |
-| **Smart Contracts** | Solidity 0.8.20 | Atomic multi-hop execution and flash loan management. |
-| **Strategy** | Cross-DEX Arbitrage | Target: Uniswap V3 (Concentrated Liquidity) & Aerodrome. |
+## Smart Contract Layer
 
-## 🛠 Environmental Reproducibility
+`ArbFlashBot.sol` handles the on-chain execution flow.
 
-This project uses a dedicated `rust-toolchain.toml` to lock the compiler version, ensuring consistent builds across different development environments.
+The contract integrates with the Balancer Vault for flash loans and includes compatibility handling for non-standard ERC20 implementations that do not consistently return transfer values.
+
+Additional checks are included to avoid failed execution paths during swaps and approvals.
+
+## Stack
+
+- Rust (Tokio)
+- Alloy-rs
+- Solidity 0.8.20
+- Uniswap V3
+- Balancer Vault
+
+## Project Status
+
+Development on this project has been paused since late 2025.
+
+The repository is still kept public as part of my research and engineering portfolio, and some parts of the codebase reflect fast testing and research iterations rather than polished production code.
+
+## Notes
+
+This was built mainly as a research and engineering project focused on execution flow, async infrastructure, and DeFi arbitrage mechanics.
+
