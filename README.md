@@ -1,48 +1,54 @@
-# Alloy-mev-executor-V2
+# Alloy-MEV-Executor
 
-FlashBot Zero v2 is a modular arbitrage execution framework built for the Ethereum Mainnet network using Rust and Solidity.
+This is a low-latency MEV arbitrage execution framework I built for Ethereum Mainnet using Rust and Solidity. 
 
-The project focuses on low-latency transaction simulation, multi-hop execution, and reliable interaction with concentrated liquidity AMMs like Uniswap V3.
+The main goal of this project was to stop relying on slow RPC queries for route evaluation. Instead of asking a node to simulate every swap, the bot does the EVM math locally in memory to save milliseconds during mempool races.
 
-## Architecture
+---
 
-The Rust backend is split into separate modules to keep simulation, execution, and state management isolated and easier to maintain.
+## How it works under the hood
 
-- `main.rs`
-  Handles block subscriptions, async orchestration, and cross-module coordination.
+When building this, I had to solve a few annoying bottlenecks to get the speed right:
 
-- `math.rs`
-  Contains Uniswap V3 math utilities, including Tick ↔ Price conversions using Q64.96 fixed-point calculations.
+### 1. Bridging Alloy and Primitive Types
+If you work with Rust in Web3 right now, you know the ecosystem is split between the old `primitive_types` and the new `alloy_primitives`. To fix this without wasting time on heap allocations, I wrote direct memory-layout casting using little-endian byte slices (`to_le_bytes::<32>()`). Basically, it acts as a zero-copy bridge between the two formats.
 
-- `executor.rs`
-  Handles transaction building, gas estimation, signing, and propagation.
+### 2. Running Uniswap Math Locally
+Waiting for an RPC response is a death sentence in MEV. So, I ported the core Uniswap V3 math (`compute_swap_step` and `tick_math`) to run locally. The bot calculates the exact `amount_out` and slippage limits right in the CPU before building the transaction.
 
-- `state.rs`
-  Stores cached pool metadata and token information using DashMap to reduce redundant RPC calls.
+### 3. Handling State Concurrency
+Mempools get chaotic during block spikes. I used a concurrent `DashMap` to cache active pool states. This lets the Tokio runtime handle multiple tasks reading and writing pool data at the same time without locking up the threads.
 
-## Smart Contract Layer
+---
 
-`ArbFlashBot.sol` handles the on-chain execution flow.
+## Codebase Breakdown
 
-The contract integrates with the Balancer Vault for flash loans and includes compatibility handling for non-standard ERC20 implementations that do not consistently return transfer values.
+I split the backend into specific modules to keep things clean:
 
-Additional checks are included to avoid failed execution paths during swaps and approvals.
+* **`math.rs`**: Handles the local Uniswap V3 simulations, Q64.96 math, and the type conversions.
+* **`state.rs`**: The concurrent cache holding the active pools. 
+* **`executor.rs`**: Builds the payload, estimates gas, and pushes the transaction.
+* **`main.rs`**: The Tokio async loop that manages websockets and cross-module channels.
+
+---
+
+## The Smart Contract (`ArbFlashBot.sol`)
+
+The on-chain part is straightforward but defensive:
+* **Flash Loans:** Hooked up to the Balancer Vault to borrow capital.
+* **Weird ERC20s:** I added custom wrappers to handle non-standard tokens that don't return booleans on `transfer`. If you don't do this, they will silently fail your whole execution.
+* **Gas Protection:** Added strict atomicity checks. If the state changes and the margin isn't there anymore, the contract reverts early to save gas.
+
+---
 
 ## Stack
+* Rust (Tokio, Alloy-rs)
+* Solidity 0.8.20
+* Targets: Uniswap V3 & Balancer Vault
 
-- Rust (Tokio)
-- Alloy-rs
-- Solidity 0.8.20
-- Uniswap V3
-- Balancer Vault
+---
 
-## Project Status
+## Notes & Status
+I built this as a research project focused on low-level EVM mechanics and execution speed, and I wrapped up the core development around late 2025. 
 
-Development on this project has been paused since late 2025.
-
-The repository is still kept public as part of my research and engineering portfolio, and some parts of the codebase reflect fast testing and research iterations rather than polished production code.
-
-## Notes
-
-This was built mainly as a research and engineering project focused on execution flow, async infrastructure, and DeFi arbitrage mechanics.
-
+It works great as a reference architecture, but keep in mind that some scripts in the repo reflect fast, local testing iterations rather than a polished, plug-and-play production binary.
