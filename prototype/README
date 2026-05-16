@@ -1,0 +1,8 @@
+## 🐍 Python Research & Prototype Layer 
+
+Before migrating to low-latency Rust, a comprehensive Python suite was developed to research network behavior, map liquidity, and validate arbitrage paths. 
+
+This isolated directory contains the initial research codebase:
+* **`King_Scanner.py` & `scanner.py`:** Mempool monitoring and log ingestion scripts.
+* **`decoder.py` & `parser.py`:** ABI decoding mechanisms used to parse raw EVM transaction receipts and extract swap events.
+* **`simulation.py`:** Baseline algorithmic simulation loop used to mathematically verify profit margins before building the Rust execution pipeline.
